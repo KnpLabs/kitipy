@@ -5,6 +5,7 @@ import kitipy.docker
 import kitipy.docker.tasks
 import os
 import sys
+from kitipy import sphinx_actions
 from typing import Optional, List
 
 config = {
@@ -150,6 +151,15 @@ def test_generate_git_tgz(kctx: kitipy.Context, keep: bool):
     finally:
         if not keep:
             kctx.run('rm -rf %s' % (tempdir))
+
+
+@root.task(name='build-docs')
+def build_docs(kctx: kitipy.Context):
+    sphinx_actions.apidoc(kctx,
+                          'kitipy/',
+                          output_dir='docs/source',
+                          force=True)
+    sphinx_actions.build(kctx, 'docs/source', 'docs/build')
 
 
 root.add_command(kitipy.docker.tasks.compose)
