@@ -173,6 +173,30 @@ class Context(object):
         """Call :func:`click.echo`."""
         return click.echo(*args, **kwargs)
 
+    def info(self, message: str):
+        """Output a colored info message (black on cyan) on stderr using :func:`click.secho`."""
+        return click.secho('WARNING: ' + message,
+                           bg='cyan',
+                           fg='black',
+                           bold=True,
+                           err=True)
+
+    def warning(self, message: str):
+        """Output a colored warning message (black on yellow) on stderr, using :func:`click.secho`."""
+        return click.secho('WARNING: ' + message,
+                           bg='yellow',
+                           fg='black',
+                           bold=True,
+                           err=True)
+
+    def error(self, message: str):
+        """Output a colored error message (white on red) on stderr using :func:`click.secho`."""
+        return click.secho('ERROR: ' + message,
+                           bg='red',
+                           fg='bright_white',
+                           bold=True,
+                           err=True)
+
     def fail(self, message):
         """Raise a :class:`click.ClickException`."""
         raise click.ClickException(message)
