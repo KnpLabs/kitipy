@@ -21,7 +21,7 @@ def network_ls(_pipe: bool = False, _check: bool = True,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the subprocess is successful or check
+        :class:`subprocess.CompletedProcess`: When the subprocess is successful or check
             mode is disabled.
     """
     exec = get_current_executor()
@@ -50,7 +50,7 @@ def network_create(name: str,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the subprocess is successful or check
+        :class:`subprocess.CompletedProcess`: When the subprocess is successful or check
             mode is disabled.
     """
     exec = get_current_executor()
@@ -88,7 +88,7 @@ def secret_create(name: str,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the subprocess is successful or check
+        :class:`subprocess.CompletedProcess`: When the subprocess is successful or check
             mode is disabled.
     """
     exec = get_current_executor()
@@ -128,7 +128,7 @@ def buildx_imagetools_inspect(image: str,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the subprocess is successful or check
+        :class:`subprocess.CompletedProcess`: When the subprocess is successful or check
             mode is disabled.
     """
     exec = get_current_executor()
@@ -155,7 +155,7 @@ def container_ps(_pipe: bool = False, _check: bool = True,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the process is successful or check
+        :class:`subprocess.CompletedProcess`: When the process is successful or check
             mode is disabled.
     """
     exec = get_current_executor()
@@ -188,7 +188,7 @@ def container_run(image: str,
             subprocess fails.
     
     Returns:
-        subprocess.CompletedProcess: When the process is successful or check
+        :class:`subprocess.CompletedProcess`: When the process is successful or check
             mode is disabled.
     """
     exec = get_current_executor()

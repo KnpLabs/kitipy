@@ -7,17 +7,17 @@ def galaxy_install(kctx: Context,
                    dest: str,
                    file: str = 'galaxy-requirements.yml',
                    force: bool = False):
-    """Run ansible-galaxy install.
+    """Install Ansible dependencies using ``ansible-galaxy install``.
 
     Args:
         kctx (kitipy.Context):
-            Context to use to run ansible-galaxy.
+            Context to use to run ``ansible-galaxy``.
         dest (str):
             Directory path where dependencies should be installed.
         file (str):
-            Requirements file (defaults to galaxy-requirements.yml).
+            Requirements file (defaults to ``galaxy-requirements.yml``).
         force (bool):
-            Whehter --force flag should be added to ansible-galaxy command.
+            Whehter ``--force`` flag should be added to ``ansible-galaxy`` command.
     """
     kctx.run('ansible-galaxy install -r %s -p %s %s' % (
         file,
@@ -32,7 +32,7 @@ def run_playbook(kctx: Context,
                  hosts: Optional[Tuple[str]] = None,
                  tags: Optional[Tuple[str]] = None,
                  ask_become_pass: bool = False):
-    """Run a given Ansible playbook.
+    """Run a given Ansible playbook using ``ansible-playbook``.
 
     Args:
         kctx (kitipy.Context):
@@ -40,13 +40,13 @@ def run_playbook(kctx: Context,
         inventory (str):
             Path to Ansible host inventory.
         playbook (str):
-            Path to Ansible playbook to run.
+            Path to the Ansible playbook to run.
         hosts (Optional[Tuple[str]]):
-            List of targeted hosts. None targets all hosts (default value).
+            List of targeted hosts. Use None to target all hosts (default value).
         tags (Optional[Tuple[str]]):
-            List of targeted tags. None will use no tags (default value).
+            List of targeted tags. Use None to apply all the tags (default value).
         ask_become_pass (bool):
-            Whether --ask-become-pass should be added to the ansible-playbook
+            Whether ``--ask-become-pass`` should be added to the ``ansible-playbook``
             command.
     """
     cmd = 'ansible-playbook -i %s' % (inventory)
