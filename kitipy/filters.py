@@ -16,10 +16,8 @@ def local_only(click_ctx: click.Context) -> bool:
         click_ctx (click.Context): Current click context.
     
     Returns:
-        bool: Either the executor is running in local mode.
-
-        It returns False if the given Click context has no kitipy Context
-        attached.
+        bool: Either the executor is running in local mode. It returns False if
+            the're no kitipy Context available right now.
     """
 
     kctx = click_ctx.find_object(Context)
@@ -36,10 +34,8 @@ def remote_only(click_ctx: click.Context):
         click_ctx (click.Context): Current click context.
     
     Returns:
-        bool: Either the executor is running in remote mode.
-
-        It returns False if the given Click context has no kitipy Context
-        attached.
+        bool: Either the executor is running in remote mode. It returns False
+            if the're no kitipy Context available right now.
     """
 
     kctx = click_ctx.find_object(Context)

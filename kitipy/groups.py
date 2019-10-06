@@ -18,15 +18,15 @@ def _fake_click_ctx() -> click.Context:
 
 
 class Task(click.Command):
-    """Task is like regular click.Command but it can be dynamically
-    disabled through a filter function. Such functions can be used to
+    """Task is like regular :class:`click.Command` but it can be dynamically
+    disabled through a filter function. Such filters can be used to
     conditionally enable a task for a specific stage or to limit it to remote
     stages for instance.
 
-    Note that only kitipy Group can filter out Task; using
-    Task with regular click Group will have no effect.
+    Note that only :class:`kitipy.Group` can filter out Tasks; using
+    :class:`kitipy.Task` with regular :class:`click.Group` will have no effect.
 
-    kitipy provides some filters in kitipy.filters and kitipy.docker.filters
+    kitipy provides some filters in :mod:`kitipy.filters` and :mod:`kitipy.docker.filters`
     but you can also write your own filters if you have more advanced use-cases.
     """
     def __init__(self,
@@ -38,24 +38,29 @@ class Task(click.Command):
             name (str):
                 Name of the task.
             filter (Optional[Callable[[click.Context], bool]]):
-                Filter function used to filter out the task based on click
-                Context. When it's not provided, it defaults to a lambda always
-                returning True.
-                Click Context is passed as argument as it's the most generic
-                object available (eg. everything is accessible from there).
-                Check native filters to know how to retrieve kitipy Context
-                from click Context.
+                Filter function used to filter out the task.
+                When it's not provided, it defaults to a lambda returning
+                ``True``.
+                
+                :class:`click.Context` is passed to the filter function when
+                it's called, as it's the most generic object available (eg. 
+                everything is accessible from there).
+                
+                Check native filters to know how to retrieve :class:`kitipy.Context`
+                from :class:`click.Context`.
             **kwargs:
-                Accept any other parameters also supported by click.Command()
+                Accept any other parameters also supported by :class:`click.Command`
                 constructor.
         """
         super().__init__(name, **kwargs)
         self.filter = filter or (lambda _: True)
 
     def is_enabled(self, click_ctx: click.Context) -> bool:
-        """Check if the that Task should be filtered out based on click Context.
+        """Check if that Task should be filtered out based on the given 
+        :class:`click.Context`.
+
         Most generally, you shouldn't have to worry about this method, it's 
-        automatically called by kitipy Group.
+        automatically called by :class:`kitipy.Group`.
 
         Args:
             click_ctx (click.Context):
@@ -71,6 +76,11 @@ class Task(click.Command):
         """Given a context, this invokes the attached callback (if it exists)
         in the right way.
 
+        This is a :class:`click.Command` method overriden to implement task
+        filtering.
+
+        You generally don't need to call this method by yourself.
+
         Raises:
             click.ClickException: When this task is filtered out.
         """
@@ -80,8 +90,10 @@ class Task(click.Command):
         return super().invoke(click_ctx)
 
     def get_help_option(self, click_ctx: click.Context):
-        """This is a click.Command method overriden to implement task
+        """This is a :class:`click.Command` method overriden to implement task
         filtering.
+
+        You generally don't need to call this method by yourself.
         """
         help_options = self.get_help_option_names(click_ctx)
         if not help_options or not self.add_help_option:
@@ -108,9 +120,9 @@ class Task(click.Command):
 
 
 class Group(click.Group, Task):
-    """Group is like regular click.Group but it implements some ktipy-specific
-    features like: support for stage/stack-scoped task groups and task
-    filtering.
+    """Group is like regular :class:`click.Group` but it implements some
+    ktipy-specific features like: support for stage/stack-scoped task groups
+    and task filtering.
     """
     def __init__(self,
                  name=None,
@@ -127,10 +139,13 @@ class Group(click.Group, Task):
             filter (Callable):
                 A function to filter in/out this task group.
             invoke_on_help (bool):
-                Whehter this group function should be calle before generatng
+                Whehter this group function should be called before generating
                 help message.
+
+                This is needed when the group callback has some side-effects
+                used by some filters of the commands attached to this Group.
             **attrs:
-                Any other constructor parameters accepted by click.Group.
+                Any other constructor parameters accepted by :class:`click.Group`.
         """
         super().__init__(name, commands, **attrs)
         self._stage_group = None
@@ -139,14 +154,15 @@ class Group(click.Group, Task):
         self.invoke_on_help = invoke_on_help
 
     def merge(self, *args: click.Group):
-        """This method can be used to merge click.Group(s), including kitipy
-        Groups and RootCommand, into another Group. In this way, you can
-        combine Groups coming from other projects/kitipy taskfiles.
+        """This method can be used to merge multiple :class:`click.Group`,
+        including :class:`kitipy.Group` and :class:`kitipy.RootCommand`, into
+        another Group. In this way, you can combine Groups coming from other
+        projects or kitipy taskfiles.
 
         Args:
             *args (click.Group):
-                One or many source click.Groups you want to merge in the
-                current Group.
+                One or many source :class:`click.Group` you want to merge in
+                the current Group.
         """
         click_ctx = _fake_click_ctx()
         for src in args:
@@ -155,11 +171,11 @@ class Group(click.Group, Task):
                 self.add_command(cmd)  # type: ignore
 
     def get_command(self, click_ctx: click.Context, cmd_name: str):
-        """This is a click.Group method overriden to implement
+        """This is a :class:`click.Group` method overriden to implement
         stage/stack-scoped task groups.
 
-        Commands aren't filtered out by this method because format_command()
-        method calls it to display the help message.
+        Commands aren't filtered out by this method because :meth:`click.MultiCommand.format_commands`
+        calls it to display the help message.
 
         You generally don't need to call it by yourself.
 
@@ -180,8 +196,8 @@ class Group(click.Group, Task):
         return cmd
 
     def list_commands(self, click_ctx: click.Context):
-        """This is a click.Group method overriden to implement
-        stage/stack-scoped task groups and task filtering behaviors.
+        """This is a :class:`click.Group` method overriden to implement
+        stage/stack-scoped task groups and task filtering features.
 
         You generally don't need to call it by yourself.
         """
@@ -214,12 +230,25 @@ class Group(click.Group, Task):
         return sorted(filtered)
 
     def get_help(self, click_ctx: click.Context):
+        """Format the help into a string and return it.
+
+        This is a :class:`click.Group` method overriden to call the group
+        callback when :py:attr:`invoke_on_help` is ``True``.
+        
+        You generally don't need to call this method by yourself.
+        """
         if self.invoke_on_help:
             self.invoke_without_command = True
             self.invoke(click_ctx)
         return super().get_help(click_ctx)
 
     def command(self, *args, **kwargs):
+        """This decorator is inherited from :class:`click.Group` but is
+        disabled. You should use the decorator :meth:`Group.task` instead.
+
+        Raises:
+            DeprecationWarning
+        """
         raise DeprecationWarning(
             "kitipy task groups don\'t support command() helper.\n\n" +
             "You either have to call kitipy.task() or if you really prefer " +
@@ -249,12 +278,12 @@ class Group(click.Group, Task):
         return decorator
 
     def group(self, *args, **kwargs):
-        """This decorator creates a new kitipy Group and adds it to the current
-        Group. See kitipy.Group() for more details about the differences
-        between kitipy.Group and click.Group.
+        """This decorator creates a new :class:`kitipy.Group` and adds it to
+        the current Group. See :class:`kitipy.Group` for more details about the
+        differences between :class:`kitipy.Group` and :class:`click.Group`.
 
-        See kitipy.group() signature for more details about accepted
-        parameters.
+        See :func:`kitipy.group` decorator signature for more details about
+        accepted parameters.
         
         Returns
             Callable: The decorator to apply to the group function.

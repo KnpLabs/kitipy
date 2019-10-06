@@ -186,7 +186,7 @@ generally to ensure a stage is in a given state (e.g. all services are running,
 the DB has been initialized, etc...).
 The TesterCallable takes a kitipy.Context as argument, to help you to interact
 with your stage/stack.
-It has to return either a subprocess.CompletedProcess, a boolean or None. The
+It has to return either a :class:`subprocess.CompletedProcess`, a boolean or None. The
 test is considered successful when it returns True or a CompletedProcess with a
 returncode equal to 0.
 """
@@ -198,7 +198,7 @@ def wait_for(tester: TesterCallable,
              label: Optional[str] = None):
     """This helper function will run a tester callback for max_checks times at
     most, with an interval between each check. If the callback didn't return
-    true or a successful subprocess.CompletedProcess after max_checks retries,
+    true or a successful :class:`subprocess.CompletedProcess` after max_checks retries,
     an exception is thrown.
     
     This helps implementing some higher-level wait functions, for instance to

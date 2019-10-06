@@ -6,29 +6,29 @@ from .executor import Executor
 
 
 class Context(object):
-    """Kitipy context is the global object carrying the kitipy Executor used to
+    """kitipy Context is the global object carrying the kitipy :class:`Executor` used to
     ubiquitously run commands on local and remote targets, as well as the stack
-    and stage objects loaded by task groups and the dispatcher used to update
-    the CLI based on executor events.
+    and stage objects loaded by task groups and the dispatcher used to decouple
+    command execution from other concerns.
 
     It's acting as a global Facade, such that you generally don't need to
     interact with other kitipy or click objects.
 
-    As both kitipy and click exposes their own Context object, you might wonder
-    what's the fundamental difference between them, here it is:
+    As both kitipy and click exposes their own ``Context`` object, you might wonder
+    what's the fundamental difference between them. Here it is:
 
-      * As said above, kitipy Context carry everything about how and where to
+      * As said above, kitipy ``Context`` carry everything about how and where to
         execute shell commands, on either local or remote targets. As such, it
         has a central place in kitipy and is what you interact with within 
         kitipy tasks.
-      * In the other hand, the click Context is here to carry details about CLI
+      * In the other hand, the click ``Context`` is here to carry details about CLI
         commands and options, and to actually parse and navigate the command
         tree made of kitipy tasks or regular click commands. As kitipy is a 
-        super-set of click features, click.Context actually embeds the
-        kitipy.Context object.
+        super-set of click features, :class:`click.Context` actually embeds the
+        :class:`kitipy.Context` object.
 
     You generally don't need to instantiate it by yourself, as this is
-    handled by RootCommand which can be created through the kitipy.root()
+    handled by :class:`RootCommand` which can be created through the :func:`kitipy.root`
     decorator.
     """
     def __init__(self,
@@ -40,7 +40,7 @@ class Context(object):
         """
         Args:
             config (Dict):
-                Normalized kitipy config (see normalize_config()).
+                Normalized kitipy config (see :meth:`kitipy.normalize_config`).
             executor (kitipy.Executor):
                 The command executor used to ubiquitously run commands on local
                 and remote targets.
@@ -72,22 +72,26 @@ class Context(object):
         self.dispatcher = dispatcher
 
     def run(self, cmd: str, **kwargs) -> subprocess.CompletedProcess:
-        """This method is the way to ubiquitously run a command on either local
-        or remote target, depending on how the executor was set.
+        """This method is the way to ubiquitously run commands on either local
+        or remote targets, depending on how the executor was set.
 
         Args:
             cmd (str): The command to run.
-            **kwargs: See Executor.run() options for more details.
+            **kwargs: See :meth:`Executor.run` options for more details.
 
         Raises:
-            paramiko.SSHException:
+            paramiko.ssh_exception.SSHException:
                 When the SSH client fail to run the command. Note that this
                 won't be raised when the command could not be found or it
                 exits with code > 0 though, but only when something fails at
                 the SSH client/server lower level.
+                
+            subprocess.SubprocessError:
+                When check mode is enabled and the processs exits with return
+                code > 0.
         
         Returns:
-            subprocess.CompletedProcess
+            :class:`subprocess.CompletedProcess`
         """
         return self.executor.run(cmd, **kwargs)
 
@@ -95,82 +99,105 @@ class Context(object):
         """Run a command on local host.
         
         This method is particularly useful when you want to run some commands
-        on local host whereas the Executor is running in remote mode. For
-        instance, you might want to check if a given git tag or some Docker 
-        images exists on a remote repository/registry before deploying it, 
+        on local host whereas the Executor is running in remote mode. 
+        
+        For instance, you might want to check if a given git tag or some Docker
+        images exists on a remote repository/registry before deploying them, 
         or you might want to fetch the local git author name to log deployment
         events somewhere. Such checks are generally better run locally.
 
         Args:
             cmd (str): The command to run.
-            **kwargs: See Executor.run() options for more details.
+            **kwargs: See :meth:`Executor.local` options for more details.
 
         Raises:
-            paramiko.SSHException:
-                When the SSH client fail to run the command. Note that this
-                won't be raised when the command could not be found or it
-                exits with code > 0 though, but only when something fails at
-                the SSH client/server lower level.
+            subprocess.SubprocessError: When check mode is enabled and the
+                processs exits with return code > 0.
         
         Returns:
-            subprocess.CompletedProcess
+            :class:`subprocess.CompletedProcess`
         """
         return self.executor.local(cmd, **kwargs)
 
     def copy(self, src: str, dest: str):
-        """Copy a local file to a given path. If the underlying executor has
+        """Copy a local file to a given path. If the underlying :class:`Executor` has
         been configured to work in remote mode, the given source path will
-        be copied over network."""
+        be copied over network. Otherwise, nothing happens.
+        
+        See :meth:`Executor.copy` for more details."""
         self.executor.copy(src, dest)
 
     def get_stage_names(self):
-        """Get the name of all stages in the configuration"""
+        """Get the name of all stages in the configuration."""
         return self.config['stages'].keys()
 
     def get_stack_names(self):
-        """Get the name of all stacks in the configuration"""
+        """Get the name of all stacks in the configuration."""
         return self.config['stacks'].keys()
 
     @property
     def is_local(self):
-        """Check if current kitipy Executor is in local mode"""
+        """Check if current kitipy Executor is in local mode."""
         return self.executor.is_local
 
     @property
     def is_remote(self):
-        """Check if current kitipy Executor is in remote mode"""
+        """Check if current kitipy Executor is in remote mode."""
         return self.executor.is_remote
 
     @property
     def meta(self):
-        """Meta properties from current click.Context"""
+        """Meta properties from current :class:`click.Context`."""
         return click.get_current_context().meta
 
     def invoke(self, *args, **kwargs):
-        """Call invoke() method on current click.Context"""
+        """Call :meth:`click.Context.invoke` method on current
+        :class:`click.Context`.
+        
+        This is particularly useful if you want to invoke another task/command.
+        In the example below, when task ``foo`` is invoked, it starts by
+        invoking task ``bar``.
+        
+        .. code-block:: python
+
+            @root.task()
+            def foo(kctx: kitipy.Context):
+                kctx.invoke(bar)
+                # Some more actions
+
+        To know more about other composition patterns, see :ref:`composition-patterns`.
+        """
         return click.get_current_context().invoke(*args, **kwargs)
 
     def echo(self, *args, **kwargs):
-        """Call echo() method on current click.Context"""
+        """Call :func:`click.echo`."""
         return click.echo(*args, **kwargs)
 
     def fail(self, message):
-        """Call fail() method on current click.Context"""
+        """Raise a :class:`click.ClickException`."""
         raise click.ClickException(message)
 
 
 pass_context = click.make_pass_decorator(Context)
+pass_context.__doc__ = """This decorator prepends the function arguments with
+the current :class:`kitipy.Context`.
+
+This is particularly useful for group functions, when you've to load/set some
+values on the Context. However this is an advanced usage of kitipy, stage and
+stack-scoped groups are actually doing all the hard work to load and set the 
+stage/stack on the the Context.
+"""
 
 
 def get_current_context() -> Context:
     """
-    Find the current kitipy context or raise an error.
+    Get the current kitipy context or raise an error.
 
     Raises:
-        RuntimeError: When no kitipy context has been found.
+        RuntimeError: When no kitipy context is available.
     
     Returns:
-        Context: The current kitipy context.
+        Context: The current kitipy Context.
     """
 
     click_ctx = click.get_current_context()
@@ -182,10 +209,10 @@ def get_current_context() -> Context:
 
 def get_current_executor() -> Executor:
     """
-    Get the executor from the current kitipy context or raise an error.
+    Get the executor from the current kitipy Context or raise an error.
 
     Raises:
-        RuntimeError: When no kitipy context has been found.
+        RuntimeError: When no kitipy context is available.
     
     Returns:
         Executor: The executor of the current kitipy context.

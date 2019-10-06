@@ -11,15 +11,15 @@ from .dispatcher import Dispatcher
 
 
 class Executor(object):
-    """Executor provides a common abstraction to execute commands and
+    """Executor provides a common abstraction to ubiquitously run commands and
     manipulate files on both local computer and remote machines.
 
     It can be used either in local mode, when instantiated with no hostname, or
-    in remote mode, when a hostname is provided. In remote mode, it uses a
-    SSH/SFTP client to do its job. Remote connections are lazily opened when
-    the first command is run or when the first file is copied.
-
-    The SSH/SFTP connections are automatically closed when the executor got
+    in remote mode, when a hostname is provided.
+    
+    In remote mode, it uses a SSH/SFTP client to do its job. Remote connections
+    are lazily opened when the first command is run or when the first file is
+    copied. The SSH/SFTP connections are automatically closed when the executor got
     destroyed.
     """
     def __init__(self,
@@ -41,14 +41,14 @@ class Executor(object):
                 uploads.
             hostname (Optional[str]):
                 The SSH hostname (could be an alias) to connect to. Leave empty
-                to use the Executor to local mode.
+                to use the Executor in local mode.
             ssh_config_file (str):
                 Path to the OpenSSH client config file used by paramiko. This
                 path could either be relative, absolute or startin with ~/.
             paramiko_config (Dict):
                 These are extra parameters passed to paramiko when opening the
                 SSH connection. This is useful to tweak paramiko-specific 
-                parameters like look_for_key (which uses ~/.ssh/id_rsa if 
+                parameters like ``look_for_key`` (which uses ~/.ssh/id_rsa if 
                 other authentication mechanisms don't work).
         """
         self._ssh = None
@@ -84,8 +84,8 @@ class Executor(object):
             paramiko_config (Dict[str, Any]):
                 Extra parameters to pass to paramiko when opening the
                 connection. This is useful to change default paramiko behavior
-                like disabling look_for_keys to not try ~/.ssh/id_rsa key by
-                default.
+                like disabling look_for_keys to not try ``~/.ssh/id_rsa`` key
+                by default.
         """
         ssh_config_path = os.path.expanduser(ssh_config_file)
         ssh_config = paramiko.SSHConfig()
@@ -133,8 +133,8 @@ class Executor(object):
 
     def set_missing_host_key_policy(self,
                                     policy: paramiko.MissingHostKeyPolicy):
-        """Set the missing_host_key_policy used by paramiko when it stumbles
-        upon a server with an unknown signature.
+        """Set the ``missing_host_key_policy`` used by paramiko when it
+        stumbles upon a server with an unknown signature.
 
         This method has to be called before the first command is run or the
         first file is copied.
@@ -161,10 +161,10 @@ class Executor(object):
 
         Raises:
             RuntimeError: When the Executor is running in local mode.
-            paramiko.SSHException: When it fails to open the connection.
+            paramiko.ssh_exception.SSHException: When it fails to open the connection.
         
         Returns:
-            paramiko.SSHClient: The underlying SSH client
+            paramiko.client.SSHClient: The underlying SSH client
         """
 
         if self.is_local:
@@ -186,10 +186,10 @@ class Executor(object):
 
         Raises:
             RuntimeError: When the Executor is running in local mode.
-            paramiko.SSHException: When it fails to open the connection.
+            paramiko.ssh_exception.SSHException: When it fails to open the connection.
         
         Returns:
-            paramiko.SFTPClient: The underlying SFTP client
+            paramiko.sftp_client.SFTPClient: The underlying SFTP client.
         """
 
         if self.is_local:
@@ -217,9 +217,10 @@ class Executor(object):
         """Run a command on local host.
         
         This method is particularly useful when you want to run some commands
-        on local host whereas the Executor is running in remote mode. For
-        instance, you might want to check if a given git tag or some Docker 
-        images exists on a remote repository/registry before deploying it, 
+        on local host whereas the Executor is running in remote mode. 
+        
+        For instance, you might want to check if a given git tag or some Docker
+        images exists on a remote repository/registry before deploying them, 
         or you might want to fetch the local git author name to log deployment
         events somewhere. Such checks are generally better run locally.
 
@@ -227,36 +228,40 @@ class Executor(object):
             cmd (str):
                 Command and args to run.
             env (Optional[Dict[str, str]]):
-                Env vars used to run the given cmd. When this is None (the
-                default value) the subprocess will inherit its env vars from
-                kitipy, so any env vars declared before running kitipy will be
-                made available for the command.
+                Env vars used to run the given ``cmd``. When this is ``None``
+                (the default value) the subprocess will inherit its env vars
+                from kitipy, so any env vars declared before running kitipy
+                will be made available to the command.
             cwd (Optional[str]):
                 Working directory where the command should be run. When this is
-                None (the default value), the current working directory is used.
+                ``None`` (the default value), the current working directory is
+                used.
             shell (bool):
-                Whether the command should be run in a shell (True by default).
+                Whether the command should be run in a shell (``True`` by
+                default).
             input (Optional[str]):
                 Standard input of the subprocess.
             text (bool):
-                Whether stdin/stdout/stderr streams should be converted from/into
-                strings using encoding parameter or kept in binary format.
+                Whether ``stdin``, ``stdout`` and ``stderr`` streams should be
+                converted from/into strings using encoding parameter or kept in
+                binary format.
             encoding (Optional[str]):
                 Determine the encoding used to convert streams from/to binary format.
             pipe (bool):
 				Whether the subprocess output should be piped to kitipy and
-				made available through the returned subprocess.CompletedProcess
-				(when True), or outputted to kitipy stdout/stderr (when False).
-				This is similar to subprocess.Popen(..., pipe=True).
+				made available through the returned :class:`subprocess.CompletedProcess`
+				(when ``True``), or outputted to kitipy ``stdout``/``stderr``
+                (when ``False``, the default value).
+				This is similar to :code:`subprocess.Popen('...', pipe=True)`.
             check (bool):
                 Check if the executed command returns exit code 0 or raise an
                 error otherwise.
         Raises:
-            subprocess.SubprocessError: When check mode is enable and the
+            subprocess.SubprocessError: When check mode is enabled and the
                 command returns an exit code > 0.
         
         Returns:
-            subprocess.CompletedProcess
+            :class:`subprocess.CompletedProcess`
         """
         cwd = cwd or self._basedir
 
@@ -287,16 +292,20 @@ class Executor(object):
         Args:
             cmd (str):
                 Command and args to run
-            env (Dict[str, str]):
-                Env vars used to run the given cmd.
+            env (Optional[Dict[str, str]]):
+                Env vars used to run the given ``cmd``. When this is ``None``
+                (the default value), the default env vars set by the remote
+                shell will be used.
             cwd (Optional[str]):
                 Working directory where the command should be run. When this is
-                None (the default value), the current working directory is used.
+                ``None`` (the default value), the current working directory is
+                used.
             input (Optional[str]):
                 If passed, it's written to command stdin.
             text (bool):
-                Whether stdin/stdout/stderr streams should be converted from/into
-                strings using encoding parameter or kept in binary format.
+                Whether ``stdin``, ``stdout`` and ``stderr`` streams should be
+                converted from/into strings using encoding parameter or kept in
+                binary format.
             encoding (Optional[str]):
                 Determine the encoding used to convert streams from/to binary format.
             check (bool):
@@ -305,14 +314,17 @@ class Executor(object):
         Raises:
             RuntimeError: When the Executor is running in local mode.
             
-            paramiko.SSHException:
+            paramiko.ssh_exception.SSHException:
                 When the SSH client fail to run the command. Note that this
                 won't be raised when the command could not be found or it
                 exits with code > 0 though, but only when something fails at
                 the SSH client/server lower level.
+            
+            subprocess.SubprocessError: When check mode is enabled and the
+                command returns an exit code > 0.
         
         Returns:
-            subprocess.CompletedProcess
+            :class:`subprocess.CompletedProcess`
         """
         cwd = cwd or self._basedir
 
@@ -340,7 +352,11 @@ class Executor(object):
             out = out.decode(encoding)
             err = err.decode(encoding)
 
-        return subprocess.CompletedProcess(cmd, returncode, out, err)
+        completed = subprocess.CompletedProcess(cmd, returncode, out, err)
+        if check:
+            completed.check_returncode()
+
+        return completed
 
     # @TODO: cmd signature have to be changed to accept list too (due to shell opts)
     def run(
@@ -356,7 +372,7 @@ class Executor(object):
             check: bool = True,
     ) -> subprocess.CompletedProcess:
         """This method is the way to ubiquitously run a command on either local
-        or remote target, depending on how the executor was set. More precisely, 
+        or remote target, depending on how the Executor was set. More precisely, 
         it checks if there's a remote hostname set on the executor to know
         whether the command should be locally or remotely.
 
@@ -364,44 +380,56 @@ class Executor(object):
             cmd (str):
                 Command and args to run
             env (Optional[Dict[str, str]]):
-                Env vars used to run the given cmd. When this is None (the
-                default value) and the Executor is running in local mode, the
+                Env vars used to run the given ``cmd``.
+                
+                In local mode, when this is ``None`` (the default value) the
                 subprocess will inherit its env vars from kitipy, so any env
-                vars declared before running kitipy will be made available for
+                vars declared before running kitipy will be made available to
                 the command.
+
+                In remote mode, when this is ``None``, the default env vars set
+                by the remote shell will be used.
             cwd (Optional[str]):
-                Working directory where the command should be run. When this is
-                None (the default value), in local mode, the current working
-                directory is used and in remote mode, the user home directory
-                is used.
+                Working directory where the command should be run.
+                
+                In local mode, when this is ``None`` (the default value), the
+                current working directory is used.
+
+                In remote mode, when this is ``None``, the default login
+                directory (usually the user home directory) will be used.
             shell (bool):
-                Whether the command should be run in a shell (True by default).
+                Whether the command should be run in a shell (``True`` by
+                default). Note that in remote mode, this parameter has no
+                effect (all the commands run inside a shell).
             input (Optional[str]):
                 Standard input of the subprocess.
             text (bool):
-                Whether stdin/stdout/stderr streams should be converted from/into
-                strings using encoding parameter or kept in binary format.
+                Whether ``stdin``, ``stdout`` and ``stderr`` streams should be
+                converted from/into strings using encoding parameter or kept in
+                binary format.
             encoding (Optional[str]):
                 Determine the encoding used to convert streams from/to binary format.
             pipe (bool):
 				Whether the subprocess output should be piped to kitipy and
-				made available through the returned subprocess.CompletedProcess
-				(when True), or outputted to kitipy stdout/stderr (when False).
-				This is similar to subprocess.Popen(..., pipe=True).
+				made available through the returned :class:`subprocess.CompletedProcess`
+				(when ``True``), or outputted to kitipy ``stdout``/``stderr``
+                (when ``False``, the default value).
+				This is similar to :code:`subprocess.Popen('...', pipe=True)`.
             check (bool):
                 Check if the executed command returns exit code 0 or raise an
                 error otherwise.
         Raises:
-            RuntimeError: When the Executor is running in local mode.
-            
-            paramiko.SSHException:
+            paramiko.ssh_exception.SSHException:
                 When the SSH client fail to run the command. Note that this
                 won't be raised when the command could not be found or it
                 exits with code > 0 though, but only when something fails at
                 the SSH client/server lower level.
+            
+            subprocess.SubprocessError: When check mode is enabled and the
+                command returns an exit code > 0.
         
         Returns:
-            subprocess.CompletedProcess
+            :class:`subprocess.CompletedProcess`
         """
         if self.is_remote:
             return self._remote(cmd,
@@ -425,12 +453,27 @@ class Executor(object):
         """This method transfers files from your computer to a remote target.
         It does nothing when executed in local mode.
 
-        This method uses the dispatcher to emit events in order to let the UI
-        display what's going on.
+        This method uses the dispatcher to emit following events in order to
+        let the UI display what's going on:
+        
+            * ``file_transfer.start``: With total ``size`` and ``label``
+              parameters.
+            * ``file_transfer.update``: With the ``current`` transfered size
+              and ``total`` size.
+            * ``file_transfer.end``: When the file transfers ends or when an
+              exception is raised.
+
+        These are handled by listeners defined by :func:`kitipy.set_up_file_transfer_listeners`, 
+        which is called by :class:`kitipy.RootCommand` constructor. Thus, you
+        generally don't need to handle them by yourself, unless you're an
+        advanced kitipy user.
 
         Args:
             local_path (str): Path to the file to transfer.
             remote_path (str): Destination path on the remote target.
+        
+        Raises:
+            paramiko.ssh_exception.SSHException: When the copy fails.
         """
         if not self.is_remote:
             return
@@ -451,22 +494,26 @@ class Executor(object):
                 suffix: Optional[str] = None,
                 prefix: Optional[str] = None,
                 dir: Optional[str] = None) -> str:
-        """Creates a temporary file with a unique name. It runs tempfile.mkdtemp()
-        in local mode and uses `mktemp -d` in remote mode. It's the caller
-        responsibility to clean up this directory when it's not used anymore.
+        """Creates a temporary directory with a unique name. It runs
+        :func:`tempfile.mkdtemp` in local mode and uses ``mktemp -d`` in
+        remote mode. It's the caller responsibility to clean up this directory
+        when it's not used anymore.
 
         Args:
             suffix (Optional[str]):
-                Suffix of the temporary filename.
+                Suffix of the temporary directory.
             prefix (Optional[str]):
-                Prefix of the temporary filename.
+                Prefix of the temporary directory.
             dir (Optional[str]):
-                Directory where the temporary file should be created. This 
-                defaults to the default temporary directory in local mode and
-                to `/tmp` in remote mode.
+                Base directory where the temporary directory should be created.
+                This  defaults to the default temporary directory in local mode
+                and to ``/tmp`` in remote mode.
         
         Raises:
-            paramiko.SSHException: When running in remote mode and the command fails.
+            paramiko.ssh_exception.SSHException: When running in remote mode and a low-level
+                SSH error happens.
+            
+            subprocess.SubprocessError: When ``mktemp -d`` fails.
 
         Returns:
             str: The path to the temporary directory.
@@ -474,15 +521,16 @@ class Executor(object):
         if self.is_local:
             return tempfile.mkdtemp(suffix, prefix, dir)
 
+        dir = dir or '/tmp'
         prefix = prefix or ''
         suffix = suffix or ''
-        filename_tpl = os.path.join('/tmp', prefix + 'XXXXXXXX' + suffix)
+        filename_tpl = os.path.join(dir, prefix + 'XXXXXXXX' + suffix)
         res = self._remote("mktemp -d %s" % (filename_tpl))
         return res.stdout
 
     def path_exists(self, path: str) -> bool:
-        """Check if the given path exists. In local mode, it uses
-        `os.path.exists` and `ls` in remote mode.
+        """Check if the given path exists. It uses :code:`os.path.exists` in 
+        local mode and ``ls`` in remote mode.
         """
         if self.is_local:
             return os.path.exists(path)
@@ -492,20 +540,28 @@ class Executor(object):
 
     @property
     def is_local(self) -> bool:
+        """Check if the Executor run in local mode (initialized with no hostname)."""
         return self._ssh_config is None
 
     @property
     def is_remote(self) -> bool:
+        """Check if the Executor run in remote mode (initialized with a hostname)."""
         return self._ssh_config is not None
 
 
 class InteractiveWarningPolicy(paramiko.MissingHostKeyPolicy):
     """InteractiveWarningPolicy implements a paramiko MissingHostKeyPolicy
-    that uses click.confirmation() helper to ask for confirmation when a new
+    that uses :func:`click.confirm` helper to ask for confirmation when a new
     host_key is detected. This is the default paramiko MissingHostKeyPolicy
     used by kitipy.
     """
     def missing_host_key(self, client, hostname, key):
+        """Called when an :class:`paramiko.client.SSHClient` receives a server
+        key for a server that isn’t in either the system or local
+        :class:`paramiko.hostkeys.HostKeys` object. To accept the key, simply
+        return. To reject, raised an exception (which will be passed to the
+        calling application).
+        """
         confirm_msg = "WARNING: Host key for %s not found (%s). Do you want to add it to your ~/.ssh/known_hosts?" % (
             hostname, key)
 
