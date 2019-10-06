@@ -4,6 +4,7 @@ import kitipy
 import kitipy.docker
 import kitipy.docker.tasks
 import os
+import shutil
 import sys
 from kitipy import sphinx_actions
 from typing import Optional, List
@@ -154,12 +155,36 @@ def test_generate_git_tgz(kctx: kitipy.Context, keep: bool):
 
 
 @root.task(name='build-docs')
-def build_docs(kctx: kitipy.Context):
+@click.option('--open/--no-open', default=None)
+def build_docs(kctx: kitipy.Context, open):
+    excluded_modules = [
+        'kitipy/docker/actions.py',
+        'kitipy/docker/stack.py',
+        'kitipy/context.py',
+        'kitipy/dispatcher.py',
+        'kitipy/executor.py',
+        'kitipy/groups.py',
+        'kitipy/utils.py',
+    ]
+
     sphinx_actions.apidoc(kctx,
-                          'kitipy/',
+                          'kitipy',
                           output_dir='docs/source',
+                          exclude=excluded_modules,
+                          module_first=True,
                           force=True)
+
+    if os.path.exists("docs/build"):
+        kctx.warning("Directory docs/build already exists. Removing...")
+        shutil.rmtree("docs/build")
+
     sphinx_actions.build(kctx, 'docs/source', 'docs/build')
+
+    if open is None:
+        open = click.confirm('Open in your browser?', True)
+
+    if open:
+        click.launch('docs/build/index.html')
 
 
 root.add_command(kitipy.docker.tasks.compose)
