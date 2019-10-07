@@ -338,7 +338,7 @@ class SwarmStack(BaseStack):
                 (unless _check is False).
         
         Returns
-            subprocess.CompletedProcess: When the process run successfully or
+            :class:`subprocess.CompletedProcess`: When the process run successfully or
                 when _check is False.
         """
         if services is None:
@@ -430,7 +430,7 @@ class SwarmStack(BaseStack):
             subprocess.CalledProcessError: When the passed command fail to execute.
 
         Returns:
-            subprocess.CompletedProcess: 
+            :class:`subprocess.CompletedProcess`: 
         """
         kwargs.setdefault('env', self._env)
         kwargs.setdefault('cwd', self._basedir)
