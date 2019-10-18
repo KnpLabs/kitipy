@@ -340,7 +340,7 @@ class Executor(BaseExecutor):
         """
         cwd = cwd or self._basedir
 
-        res = subprocess.run(cmd,
+        res = subprocess.run(self._wrap_cmd(cmd),
                              env=env,
                              cwd=cwd,
                              shell=shell,
@@ -417,7 +417,7 @@ class Executor(BaseExecutor):
         encoding = encoding if encoding else sys.getdefaultencoding()
 
         self.ssh.exec_command('cd ' + cwd)
-        sin, sout, serr = self.ssh.exec_command(cmd, environment=env)
+        sin, sout, serr = self.ssh.exec_command(self._wrap_cmd(cmd), environment=env)
         channel = sin.channel
 
         if input is not None:
@@ -448,6 +448,17 @@ class Executor(BaseExecutor):
 
         returncode = sin.channel.recv_exit_status()
         return subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+
+    def _wrap_cmd(self, cmd: str) -> str:
+        bash_options = ('nounset', 'errexit', 'pipefail')
+
+        return '%s; %s' % (
+            ';'.join([
+                'set -o %s' % (option)
+                for option in bash_options
+            ]),
+            cmd
+        )
 
     def _read_ssh_chunks(
             self,

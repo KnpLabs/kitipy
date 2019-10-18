@@ -139,7 +139,7 @@ def set_up_file_transfer_listeners(dispatcher: kitipy.Dispatcher):
 
 
 def append_cmd_flags(cmd: str, **kwargs) -> str:
-    """Build a command string by appending flags in \**kwargs.
+    """Build a command string by appending flags in **kwargs.
 
     Args:
         cmd (str): The base command to prefix with the given flags.
