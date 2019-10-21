@@ -13,7 +13,6 @@ from ..utils import append_cmd_flags
 
 
 class BaseStack(ABC):
-
     @property
     @abstractmethod
     def name(self):
@@ -100,7 +99,6 @@ class BaseStack(ABC):
 
 
 class ComposeStack(BaseStack):
-
     def __init__(self,
                  executor: BaseExecutor,
                  stack_name='',
@@ -178,11 +176,13 @@ class ComposeStack(BaseStack):
              services: List[str] = [],
              _pipe: bool = False,
              _check: bool = True,
+             _env: Optional[Dict[str, str]] = None,
              **kwargs) -> subprocess.CompletedProcess:
         cmd = append_cmd_flags('docker-compose push', **kwargs)
-        return self._run('%s %s' % (cmd, ' '.join(services)),
-                         pipe=_pipe,
-                         check=_check)
+        return self._local('%s %s' % (cmd, ' '.join(services)),
+                           pipe=_pipe,
+                           check=_check,
+                           env=_env)
 
     def up(self,
            services: List[str] = [],
@@ -306,7 +306,6 @@ class ComposeStack(BaseStack):
 
 
 class SwarmStack(BaseStack):
-
     def __init__(self,
                  executor: BaseExecutor,
                  stack_name='',
