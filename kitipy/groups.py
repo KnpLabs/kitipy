@@ -24,11 +24,12 @@ class Task(click.Command):
     kitipy provides some filters in kitipy.filters and kitipy.docker.filters
     but you can also write your own filters if you have more advanced use-cases.
     """
-    def __init__(self,
-                 name: str,
-                 filters: Optional[List[Callable[[click.Context], bool]]] = None,
-                 cwd: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+            self,
+            name: str,
+            filters: Optional[List[Callable[[click.Context], bool]]] = None,
+            cwd: Optional[str] = None,
+            **kwargs):
         """
         Args:
             name (str):
@@ -98,17 +99,18 @@ class Group(click.Group):
     features like: support for stage/stack-scoped task groups and task
     filtering.
     """
-    def __init__(self,
-                 name=None,
-                 commands=None,
-                 tasks: Optional[List[Task]] = None,
-                 stage: Optional[str] = None,
-                 stack: Optional[str] = None,
-                 filters: Optional[List[Callable[[click.Context], bool]]] = None,
-                 cwd: Optional[str] = None,
-                 invoke_on_help: bool = False,
-                 transparents: List[click.MultiCommand] = [],
-                 **attrs):
+    def __init__(
+            self,
+            name=None,
+            commands=None,
+            tasks: Optional[List[Task]] = None,
+            stage: Optional[str] = None,
+            stack: Optional[str] = None,
+            filters: Optional[List[Callable[[click.Context], bool]]] = None,
+            cwd: Optional[str] = None,
+            invoke_on_help: bool = False,
+            transparents: List[click.MultiCommand] = [],
+            **attrs):
         """
         Args:
             name (str):
@@ -235,6 +237,7 @@ class Group(click.Group):
             else:
                 sub_names, sub_origs, sub_cmds = ((), (), ())
 
+            # @TODO: check if the subcommand
             colliding = list(set(origins.keys()) & set(sub_names))
             if len(colliding) > 0:
                 error = ', '.join([
@@ -519,7 +522,8 @@ class StageGroup(click.MultiCommand):
 
     def __getattr__(self, name):
         if name.startswith('_'):
-            raise AttributeError("Stage group names can't start with an underscore.")
+            raise AttributeError(
+                "Stage group names can't start with an underscore.")
         if name not in self._stages:
             self._stages[name] = self._create_stage(name)
         return self._stages[name]
@@ -579,7 +583,10 @@ class StageGroup(click.MultiCommand):
 
 
 class StackGroup(click.MultiCommand):
-    def __init__(self, name, subgroups_params: Optional[Dict[str, Any]] = None, **attrs):
+    def __init__(self,
+                 name,
+                 subgroups_params: Optional[Dict[str, Any]] = None,
+                 **attrs):
         super().__init__(name, **attrs)
         self.subgroups_params = subgroups_params if subgroups_params else {}
 
@@ -593,7 +600,8 @@ class StackGroup(click.MultiCommand):
 
     def __getattr__(self, name):
         if name.startswith('_'):
-            raise AttributeError("Stack group names can't start with an underscore.")
+            raise AttributeError(
+                "Stack group names can't start with an underscore.")
         if name not in self._stacks:
             self._stacks[name] = self._create_stack(name)
         return self._stacks[name]
@@ -820,7 +828,7 @@ class RootCommand(Group):
                                        info_name=info_name,
                                        parent=parent,
                                        **extra)
-        executor = Executor(os.getcwd(), self._dispatcher)
+        executor = Executor(self._dispatcher)
         self.click_ctx.obj = Context(self._config, executor, self._dispatcher)
 
         with self.click_ctx.scope(cleanup=False):

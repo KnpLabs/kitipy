@@ -34,7 +34,6 @@ class Context(ProxyExecutor):
     handled by RootCommand which can be created through the kitipy.root()
     decorator.
     """
-
     def __init__(self,
                  config: Dict,
                  executor: BaseExecutor,
@@ -110,10 +109,11 @@ class Context(ProxyExecutor):
                 self._stage = previous
 
     @contextmanager
-    def using_stack(self, stack_name, filename_params: Optional[Dict[str, str]] = None):
+    def using_stack(self,
+                    stack_name,
+                    filename_params: Optional[Dict[str, str]] = None):
         from .docker.stack import load_stack
 
-        previous = self._stack
         filename_params = filename_params if filename_params else {}
         stack = load_stack(self, stack_name, filename_params)
         stack_cfg = self.config['stacks'][stack_name]
@@ -123,6 +123,7 @@ class Context(ProxyExecutor):
         if basedir:
             cm = self.cd(basedir)
 
+        previous = self._stack
         with cm:
             try:
                 self._stack = stack

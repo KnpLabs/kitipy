@@ -16,30 +16,12 @@ from .dispatcher import Dispatcher
 
 class BaseExecutor(ABC):
     @abstractmethod
-    def getcwd(self) -> str:
-        pass
-
-    @abstractmethod
     def local(
             self,
             cmd: str,
             env: Optional[Dict[str, str]] = None,
             cwd: Optional[str] = None,
             shell: bool = True,
-            input: Optional[str] = None,
-            text: bool = True,
-            encoding: Optional[str] = None,
-            pipe: bool = False,
-            check: bool = True,
-    ) -> subprocess.CompletedProcess:
-        pass
-
-    @abstractmethod
-    def _remote(
-            self,
-            cmd: str,
-            env: Optional[Dict[str, str]] = None,
-            cwd: Optional[str] = None,
             input: Optional[str] = None,
             text: bool = True,
             encoding: Optional[str] = None,
@@ -79,6 +61,10 @@ class BaseExecutor(ABC):
         pass
 
     @abstractmethod
+    def local_cd(self, path: str):
+        pass
+
+    @abstractmethod
     def path_exists(self, path: str) -> bool:
         pass
 
@@ -90,6 +76,16 @@ class BaseExecutor(ABC):
     @property
     @abstractmethod
     def is_remote(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def cwd(self) -> Optional[str]:
+        pass
+
+    @property
+    @abstractmethod
+    def local_cwd(self) -> Optional[str]:
         pass
 
 
@@ -106,8 +102,9 @@ class Executor(BaseExecutor):
     destroyed.
     """
     def __init__(self,
-                 basedir: str,
                  dispatcher: Dispatcher,
+                 local_basedir: Optional[str] = None,
+                 remote_basedir: Optional[str] = None,
                  hostname: Optional[str] = None,
                  ssh_config_file: str = '~/.ssh/config',
                  paramiko_config: Dict[str, Any] = {}):
@@ -136,7 +133,8 @@ class Executor(BaseExecutor):
         """
         self._ssh = None
         self._sftp = None
-        self._basedir = basedir
+        self._local_basedir = local_basedir
+        self._remote_basedir = remote_basedir
         self._dispatcher = dispatcher
         self._ssh_config = None  # type: Optional[Dict[str, str]]
         self._missing_host_key_policy = InteractiveWarningPolicy()
@@ -286,9 +284,6 @@ class Executor(BaseExecutor):
 
         return self._sftp
 
-    def getcwd(self) -> str:
-        return self._basedir
-
     def local(
             self,
             cmd: str,
@@ -345,7 +340,7 @@ class Executor(BaseExecutor):
         Returns:
             subprocess.CompletedProcess
         """
-        cwd = cwd or self._basedir
+        cwd = cwd or self._local_basedir
 
         res = subprocess.run(cmd,
                              env=env,
@@ -420,10 +415,10 @@ class Executor(BaseExecutor):
                 'This Executor is running in local mode, could not run following command: %s'
                 % (cmd))
 
-        cwd = cwd or self._basedir
-        encoding = encoding if encoding else sys.getdefaultencoding()
+        cwd = cwd or self._remote_basedir
+        if cwd:
+            self.ssh.exec_command('cd ' + cwd)
 
-        self.ssh.exec_command('cd ' + cwd)
         sin, sout, serr = self.ssh.exec_command(cmd, environment=env)
         channel = sin.channel
 
@@ -434,6 +429,7 @@ class Executor(BaseExecutor):
         sin.close()
         channel.shutdown_write()
 
+        encoding = encoding if encoding else sys.getdefaultencoding()
         stdout, stderr = self._read_ssh_chunks(channel, text, encoding, pipe)
         while not channel.closed or channel.recv_ready(
         ) or channel.recv_stderr_ready():
@@ -575,10 +571,11 @@ class Executor(BaseExecutor):
         """
         local_fullpath = local_path
         remote_fullpath = remote_path
-        if not os.path.isabs(local_fullpath):
-            local_fullpath = os.path.join(self._basedir, local_fullpath)
-        if not os.path.isabs(remote_fullpath):
-            remote_fullpath = os.path.join(self._basedir, remote_fullpath)
+        if not os.path.isabs(local_fullpath) and self._local_basedir:
+            local_fullpath = os.path.join(self._local_basedir, local_fullpath)
+        if not os.path.isabs(remote_fullpath) and self._remote_basedir:
+            remote_fullpath = os.path.join(self._remote_basedir,
+                                           remote_fullpath)
 
         if self.is_local:
             shutil.copy(local_fullpath, remote_fullpath)
@@ -629,19 +626,43 @@ class Executor(BaseExecutor):
         res = self._remote("mktemp -d %s" % (filename_tpl))
         return res.stdout
 
-    @contextmanager
     def cd(self, path: str):
+        if self.is_remote:
+            return self._remote_cd(path)
+        return self.local_cd(path)
+
+    @contextmanager
+    def local_cd(self, path: str):
         if not os.path.isabs(path):
             # @TODO: the original basedir set in the constructor should be resolved
             # into absolute path in some way or another
-            path = os.path.join(self._basedir, path)
+            path = self._join_paths(self._local_basedir, path)
 
-        previous_basedir = self._basedir
+        previous_basedir = self._local_basedir
         try:
-            self._basedir = path
+            self._local_basedir = path
             yield None
         finally:
-            self._basedir = previous_basedir
+            self._local_basedir = previous_basedir
+
+    @contextmanager
+    def _remote_cd(self, path: str):
+        if not os.path.isabs(path):
+            # @TODO: the original basedir set in the constructor should be resolved
+            # into absolute path in some way or another
+            path = self._join_paths(self._remote_basedir, path)
+
+        previous_basedir = self._remote_basedir
+        try:
+            self._remote_basedir = path
+            yield None
+        finally:
+            self._remote_basedir = previous_basedir
+
+    # @TODO: Switch to pathlib to better manage paths?
+    def _join_paths(self, *paths: Optional[str]):
+        parts = [path for path in paths if path]
+        return os.path.join(*parts)
 
     def path_exists(self, path: str) -> bool:
         """Check if the given path exists. In local mode, it uses
@@ -660,6 +681,16 @@ class Executor(BaseExecutor):
     @property
     def is_remote(self) -> bool:
         return self._ssh_config is not None
+
+    @property
+    def cwd(self) -> Optional[str]:
+        if self.is_remote:
+            return self._remote_basedir
+        return self._local_basedir
+
+    @property
+    def local_cwd(self) -> Optional[str]:
+        return self._local_basedir
 
 
 def _create_executor(config: Dict, stage_name: str,
@@ -683,17 +714,18 @@ def _create_executor(config: Dict, stage_name: str,
             % (stage_name))
 
     if stage['type'] == 'local':
-        # @TODO: local executor base path should be configurable through stage params
-        return Executor(os.getcwd(), dispatcher)
+        return Executor(dispatcher)
 
     if 'hostname' not in stage:
         raise click.BadParameter(
             'Remote stage "%s" has no hostname field defined.' % (stage))
 
     # @TODO: verify and explain better all the mess around basedir/cwd
-    basedir = stage.get('basedir', '~/')
+    basedir = stage.get('basedir')
     params = {
         'hostname': stage['hostname'],
+        'local_basedir': stage.get('local_basedir'),
+        'remote_basedir': stage.get('remote_basedir'),
     }
 
     if 'ssh_config' in config:
@@ -702,7 +734,7 @@ def _create_executor(config: Dict, stage_name: str,
         # @TODO: we shouldn't be that much permissive with paramiko config
         params['paramiko_config'] = config['paramiko_config']
 
-    return Executor(basedir, dispatcher, **params)
+    return Executor(dispatcher, **params)
 
 
 class InteractiveWarningPolicy(paramiko.MissingHostKeyPolicy):
@@ -727,9 +759,6 @@ class ProxyExecutor(BaseExecutor):
     def __init__(self, executor: BaseExecutor):
         self._executor = executor
 
-    def getcwd(self):
-        return self._executor.getcwd()
-
     def local(
             self,
             cmd: str,
@@ -744,20 +773,6 @@ class ProxyExecutor(BaseExecutor):
     ) -> subprocess.CompletedProcess:
         return self._executor.local(cmd, env, cwd, shell, input, text,
                                     encoding, pipe, check)
-
-    def _remote(
-            self,
-            cmd: str,
-            env: Optional[Dict[str, str]] = None,
-            cwd: Optional[str] = None,
-            input: Optional[str] = None,
-            text: bool = True,
-            encoding: Optional[str] = None,
-            pipe: bool = False,
-            check: bool = True,
-    ) -> subprocess.CompletedProcess:
-        return self._executor._remote(cmd, env, cwd, input, text, encoding,
-                                      pipe, check)
 
     def run(
             self,
@@ -786,6 +801,9 @@ class ProxyExecutor(BaseExecutor):
     def cd(self, path: str):
         return self._executor.cd(path)
 
+    def local_cd(self, path: str):
+        return self._executor.local_cd(path)
+
     def path_exists(self, path: str) -> bool:
         return self._executor.path_exists(path)
 
@@ -796,3 +814,11 @@ class ProxyExecutor(BaseExecutor):
     @property
     def is_remote(self) -> bool:
         return self._executor.is_remote
+
+    @property
+    def cwd(self) -> Optional[str]:
+        return self._executor.cwd
+
+    @property
+    def local_cwd(self) -> Optional[str]:
+        return self._executor.local_cwd
