@@ -255,7 +255,7 @@ def wait_for(tester: TesterCallable,
 def confirm_and_apply(
         dry_run: Callable[[], Optional[subprocess.CompletedProcess]],
         confirm_msg: str,
-        apply: Callable[[], None],
+        apply: Callable[[], Optional[subprocess.CompletedProcess]],
         show_dry_run: bool = True,
         ask_confirm: bool = True,
         should_apply: bool = True,
