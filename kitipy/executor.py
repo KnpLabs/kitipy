@@ -455,7 +455,12 @@ class Executor(BaseExecutor):
         serr.close()
 
         returncode = sin.channel.recv_exit_status()
-        return subprocess.CompletedProcess(cmd, returncode, stdout, stderr)
+        completed = subprocess.CompletedProcess(cmd, returncode, stdout,
+                                                stderr)
+        if check:
+            completed.check_returncode()
+
+        return completed
 
     def _read_ssh_chunks(
             self,
