@@ -283,3 +283,7 @@ def invoke_tree(root: click.Group, subcommands: List[str]):
     click_ctx.args = subcommands[1:]
     click_ctx.protected_args = subcommands[:1]
     root.invoke(click_ctx)
+
+
+def is_interactive():
+    return os.isatty(sys.stdout.fileno())
