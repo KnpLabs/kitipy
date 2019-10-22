@@ -440,10 +440,15 @@ class Executor(BaseExecutor):
                 stdout += chunks[0]  # type: ignore
                 stderr += chunks[1]  # type: ignore
 
-            if channel.exit_status_ready(
-            ) and not channel.recv_ready() and not channel.recv_stderr_ready():
+            if channel.exit_status_ready():
+                chunks = self._read_ssh_chunks(channel, text, encoding, pipe,
+                                               True)
+                stdout += chunks[0]  # type: ignore
+                stderr += chunks[1]  # type: ignore
+
                 channel.shutdown_read()
                 channel.close()
+
                 break
 
         sout.close()
@@ -458,14 +463,21 @@ class Executor(BaseExecutor):
             text: bool,
             encoding: str,
             pipe: bool,
+            empty_buffer: bool = False,
     ) -> Tuple[Union[bytes, str], Union[bytes, str]]:
         stdout_chunk = b''  # type: Union[bytes, str]
         stderr_chunk = b''  # type: Union[bytes, str]
 
         if channel.recv_ready():
-            stdout_chunk = channel.recv(len(channel.in_buffer))
+            if empty_buffer:
+                stdout_chunk = channel.in_buffer.empty()
+            else:
+                stdout_chunk = channel.recv(len(channel.in_buffer))
         if channel.recv_stderr_ready():
-            stderr_chunk = channel.recv(len(channel.in_stderr_buffer))
+            if empty_buffer:
+                stderr_chunk = channel.in_stderr_buffer.empty()
+            else:
+                stderr_chunk = channel.recv(len(channel.in_stderr_buffer))
 
         if text:
             stdout_chunk = stdout_chunk.decode(encoding)  # type: ignore
