@@ -4,10 +4,13 @@ import paramiko
 import random
 import select
 import shutil
+import socket
 import string
 import subprocess
 import sys
 import tempfile
+import termios
+import tty
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, Tuple, Union
@@ -41,6 +44,16 @@ class BaseExecutor(ABC):
             text: bool = True,
             encoding: Optional[str] = None,
             pipe: bool = False,
+            check: bool = True,
+    ) -> subprocess.CompletedProcess:
+        pass
+
+    @abstractmethod
+    def interactive(
+            self,
+            cmd: str,
+            env: Optional[Dict[str, str]] = None,
+            cwd: Optional[str] = None,
             check: bool = True,
     ) -> subprocess.CompletedProcess:
         pass
@@ -576,6 +589,57 @@ class Executor(BaseExecutor):
                           pipe=pipe,
                           check=check)
 
+    def interactive(
+            self,
+            cmd: str,
+            env: Optional[Dict[str, str]] = None,
+            cwd: Optional[str] = None,
+            check: bool = True,
+    ) -> subprocess.CompletedProcess:
+        if not self.is_remote:
+            return self.local(cmd, env=env, cwd=cwd, check=check)
+
+        cwd = cwd or self._remote_basedir
+        if cwd:
+            cmd = 'cd %s; %s' % (cwd, cmd)
+
+        oldtty = termios.tcgetattr(sys.stdin)
+
+        sin, sout, serr = self.ssh.exec_command(cmd, environment=env)
+        channel = sin.channel
+        encoding = sys.getdefaultencoding()
+
+        try:
+            tty.setraw(sys.stdin.fileno())
+            tty.setcbreak(sys.stdin.fileno())
+            channel.settimeout(0.0)
+
+            while True:
+                r, w, e = select.select([channel, sys.stdin], [], [])
+                if channel in r:
+                    try:
+                        x = channel.recv(1024).decode(encoding)
+                        if len(x) == 0:
+                            break
+                        sys.stdout.write(x)
+                        sys.stdout.flush()
+                    except socket.timeout:
+                        pass
+                if sys.stdin in r:
+                    x = sys.stdin.read(1)
+                    if len(x) == 0:
+                        break
+                    channel.send(x)
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, oldtty)
+
+        returncode = sin.channel.recv_exit_status()
+        completed = subprocess.CompletedProcess(cmd, returncode, '', '')
+        if check:
+            completed.check_returncode()
+
+        return completed
+
     def copy(self, local_path: str, remote_path: str):
         """This method transfers files from your computer to a remote target.
 
@@ -806,6 +870,15 @@ class ProxyExecutor(BaseExecutor):
     ) -> subprocess.CompletedProcess:
         return self._executor.run(cmd, env, cwd, shell, input, text, encoding,
                                   pipe, check)
+
+    def interactive(
+            self,
+            cmd: str,
+            env: Optional[Dict[str, str]] = None,
+            cwd: Optional[str] = None,
+            check: bool = True,
+    ) -> subprocess.CompletedProcess:
+        return self._executor.interactive(cmd, env, cwd, check)
 
     def copy(self, local_path: str, remote_path: str):
         return self._executor.copy(local_path, remote_path)
