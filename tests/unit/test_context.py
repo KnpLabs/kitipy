@@ -65,5 +65,5 @@ def test_context_run():
 
     kctx.run("some cmd", env={"FOO": "bar"}, pipe=True, check=False)
 
-    executor.run.assert_called_once_with('some cmd', {"FOO": "bar"}, None, True,
-                                         None, True, None, True, False)
+    executor.run.assert_called_once_with('some cmd', {"FOO": "bar"}, None,
+                                         True, None, True, None, True, False)
