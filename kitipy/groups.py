@@ -828,7 +828,7 @@ class RootCommand(Group):
                                        info_name=info_name,
                                        parent=parent,
                                        **extra)
-        executor = Executor(self._dispatcher)
+        executor = Executor(os.getcwd(), '', self._dispatcher)
         self.click_ctx.obj = Context(self._config, executor, self._dispatcher)
 
         with self.click_ctx.scope(cleanup=False):

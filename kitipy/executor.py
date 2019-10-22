@@ -80,7 +80,7 @@ class BaseExecutor(ABC):
 
     @property
     @abstractmethod
-    def cwd(self) -> Optional[str]:
+    def cwd(self) -> str:
         pass
 
     @property
@@ -102,9 +102,9 @@ class Executor(BaseExecutor):
     destroyed.
     """
     def __init__(self,
+                 local_basedir: str,
+                 remote_basedir: str,
                  dispatcher: Dispatcher,
-                 local_basedir: Optional[str] = None,
-                 remote_basedir: Optional[str] = None,
                  hostname: Optional[str] = None,
                  ssh_config_file: str = '~/.ssh/config',
                  paramiko_config: Dict[str, Any] = {}):
@@ -683,7 +683,7 @@ class Executor(BaseExecutor):
         return self._ssh_config is not None
 
     @property
-    def cwd(self) -> Optional[str]:
+    def cwd(self) -> str:
         if self.is_remote:
             return self._remote_basedir
         return self._local_basedir
@@ -713,8 +713,11 @@ def _create_executor(config: Dict, stage_name: str,
             'Stage "%s" has no "type" field or its value is invalid (should be either: local or remote).'
             % (stage_name))
 
+    local_basedir = stage.get('local_basedir', os.getcwd())
+    remote_basedir = stage.get('remote_basedir', '~/')
+
     if stage['type'] == 'local':
-        return Executor(dispatcher)
+        return Executor(local_basedir, remote_basedir, dispatcher)
 
     if 'hostname' not in stage:
         raise click.BadParameter(
@@ -724,8 +727,6 @@ def _create_executor(config: Dict, stage_name: str,
     basedir = stage.get('basedir')
     params = {
         'hostname': stage['hostname'],
-        'local_basedir': stage.get('local_basedir'),
-        'remote_basedir': stage.get('remote_basedir'),
     }
 
     if 'ssh_config' in config:
@@ -734,7 +735,7 @@ def _create_executor(config: Dict, stage_name: str,
         # @TODO: we shouldn't be that much permissive with paramiko config
         params['paramiko_config'] = config['paramiko_config']
 
-    return Executor(dispatcher, **params)
+    return Executor(local_basedir, remote_basedir, dispatcher, **params)
 
 
 class InteractiveWarningPolicy(paramiko.MissingHostKeyPolicy):
@@ -816,7 +817,7 @@ class ProxyExecutor(BaseExecutor):
         return self._executor.is_remote
 
     @property
-    def cwd(self) -> Optional[str]:
+    def cwd(self) -> str:
         return self._executor.cwd
 
     @property
