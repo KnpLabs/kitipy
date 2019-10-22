@@ -103,7 +103,8 @@ def normalize_config(config: Dict) -> Dict:
     return config
 
 
-def set_up_file_transfer_listeners(dispatcher: kitipy.Dispatcher):
+def set_up_file_transfer_listeners(dispatcher: kitipy.Dispatcher
+                                   ) -> kitipy.Dispatcher:
     """Set up listeners for file transfer progress bars.
 
     This is usually called by the RootCommand when it creates the event
@@ -119,8 +120,9 @@ def set_up_file_transfer_listeners(dispatcher: kitipy.Dispatcher):
     def on_start(size: int, label: str):
         nonlocal progressbar
         if progressbar is not None:
-            progressbar.close()
+            progressbar.__exit__(None, None, None)
         progressbar = click.progressbar(length=size, label=label)
+        progressbar.__enter__()
 
     def on_update(current: int, total: int):
         nonlocal progressbar
@@ -130,12 +132,14 @@ def set_up_file_transfer_listeners(dispatcher: kitipy.Dispatcher):
     def on_end():
         nonlocal progressbar
         if progressbar is not None:
-            progressbar.close()
+            progressbar.__exit__(None, None, None)
             progressbar = None
 
     dispatcher.on('file_transfer.start', on_start)
     dispatcher.on('file_transfer.update', on_update)
     dispatcher.on('filter_transfer.end', on_end)
+
+    return dispatcher
 
 
 def append_cmd_flags(cmd: str, **kwargs) -> str:
