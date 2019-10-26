@@ -103,7 +103,7 @@ class ComposeStack(BaseStack):
                  executor: BaseExecutor,
                  stack_name='',
                  file='',
-                 basedir: str = None,
+                 basedir: Optional[str] = None,
                  env: Optional[Dict[str, str]] = None):
         self._name = stack_name
         self._executor = executor
@@ -557,9 +557,7 @@ def load_stack(kctx: Context,
         raise click.BadParameter('Stack %s not defined in the config.' %
                                  (stack_name))
 
-    stack_basedir = stack_config.get('basedir', None)
-    if stack_basedir is None:
-        stack_basedir = os.getcwd()
+    stack_basedir = stack_config.get('basedir')
 
     # @TODO: add templated stack filename
     # stack_file = stack_config.get('file', '%s.yml' % (stage))

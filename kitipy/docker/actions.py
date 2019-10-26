@@ -30,6 +30,22 @@ def network_ls(_pipe: bool = False, _check: bool = True,
     return exec.run(cmd, pipe=_pipe, check=_check)
 
 
+def network_inspect(networks: Union[str, List[str]],
+                    _pipe: bool = False,
+                    _check: bool = True,
+                    **kwargs) -> subprocess.CompletedProcess:
+    exec = get_current_executor()
+    cmd = append_cmd_flags("docker network inspect", **kwargs)
+    networks = [networks] if isinstance(networks, str) else networks
+    return exec.run('%s %s' % (cmd, ' '.join(networks)),
+                    pipe=_pipe,
+                    check=_check)
+
+
+def network_exists(name: str) -> bool:
+    return network_inspect(name, _pipe=True, _check=False).returncode == 0
+
+
 def network_create(name: str,
                    _pipe: bool = False,
                    _check: bool = True,
