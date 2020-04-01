@@ -13,8 +13,8 @@ parameters:
 * Add support for binary secrets ;
 """
 
-import kitipy
 import click
+import kitipy
 import kitipy.libs.aws.secretsmanager as sm
 
 secret_delimiter = click.style('%', fg="black", bg="white")

@@ -77,6 +77,7 @@ config = {
 
 import click
 import kitipy
+import kitipy.libs.aws.ecs
 import mypy_boto3_ecs
 from typing import List, Optional
 

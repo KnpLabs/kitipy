@@ -4,7 +4,7 @@ from .exceptions import TaskError
 from .executor import Executor, InteractiveWarningPolicy
 from .groups import Task, Group, RootCommand, StackGroup, StageGroup, root, task, group
 from .utils import append_cmd_flags, confirm_and_apply, invoke_tree, load_config_file, normalize_config, set_up_file_transfer_listeners, wait_for
-from . import docker, filters, libs, tasks
+from . import docker, filters
 
 from . import ansible_actions, git_actions
 
@@ -48,6 +48,4 @@ __all__ = [
 
     # other modules
     'filters',
-    'libs',
-    'tasks',
 ]
