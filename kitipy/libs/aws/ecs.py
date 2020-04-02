@@ -536,6 +536,9 @@ def wait_until_task_stops(
             The name of the cluster where the task run.
         task_arn (str):
             The ARN of the ECS task to watch.
+
+    Returns:
+        mypy_boto3_ecs.type_defs.TaskTypeDef: The stopped task.
     """
 
     waiter = client.get_waiter('tasks_stopped')
@@ -571,8 +574,7 @@ def get_task_definition(
                                            include=['TAGS'])
 
 
-TaskDesiredStatus = Union[Literal['RUNNING'], Literal['PENDING'],
-                          Literal['STOPPED']]
+TaskDesiredStatus = Literal['RUNNING', 'PENDING', 'STOPPED']
 
 
 class ListTasksFilters(TypedDict, total=False):
@@ -580,7 +582,7 @@ class ListTasksFilters(TypedDict, total=False):
     family: str
     startedBy: str
     serviceName: str
-    desiredStatus: List[TaskDesiredStatus]
+    desiredStatus: Union[List[TaskDesiredStatus], TaskDesiredStatus]
     launchType: str
 
 
@@ -588,6 +590,9 @@ def list_tasks(
     client: mypy_boto3_ecs.ECSClient, cluster_name: str,
     filters: ListTasksFilters, max_results: int
 ) -> Generator[mypy_boto3_ecs.type_defs.TaskTypeDef, None, None]:
+    if isinstance(filters['desiredStatus'], str):
+        filters['desiredStatus'] = [filters['desiredStatus']]
+
     for status in filters['desiredStatus']:
         args = dict(filters)
         args.update({
@@ -604,3 +609,119 @@ def list_tasks(
                                               cluster=cluster_name)
 
         yield from describe_resp["tasks"]
+
+
+ContainerInstanceStatus = Literal["ACTIVE", "DRAINING", "REGISTERING",
+                                  "DEREGISTERING", "REGISTRATION_FAILED"]
+
+
+def list_container_instances(
+    client: mypy_boto3_ecs.ECSClient,
+    cluster_name: str,
+    status: ContainerInstanceStatus = 'ACTIVE',
+    filter: Optional[str] = None,
+) -> List[mypy_boto3_ecs.type_defs.ContainerInstanceTypeDef]:
+    """List EC2 instances used by an ECS cluster.
+
+    Args:
+        client (mypy_boto3_ecs.ECSClient):
+            An ECS API client.
+        cluster_name (str):
+            Name of the ECS cluster.
+        status (ContainerInstanceStatus):
+            Filters the container instances by status. Defaults to ACTIVE.
+        filter (Optional[str]):
+            You can filter the results of a ListContainerInstances operation
+            with cluster query language statements.
+
+    Returns:
+        List[str]: ID of EC2 instances in the given ECS cluster.
+    """
+    args = {'cluster': cluster_name, 'status': status}
+    if filter is not None:
+        args['filter'] = filter
+
+    instance_arns = client.list_container_instances(**args)
+
+    if len(instance_arns['containerInstanceArns']) == 0:
+        return []
+
+    instances = client.describe_container_instances(
+        cluster=cluster_name,
+        containerInstances=instance_arns['containerInstanceArns'])
+
+    return instances['containerInstances']
+
+
+class ContainerInstanceNotFoundError(Exception):
+    """ContainerInstanceNotFoundError is raised when trying to interact with a Container Instance but the
+    given instance Group is not found."""
+    pass
+
+
+def describe_container_instance(client: mypy_boto3_ecs.Client,
+                                cluster_name: str, instance_id: str):
+    instances = client.describe_container_instances(
+        cluster=cluster_name, containerInstances=instance_id)
+    instance = next(instances['containerInstances'])
+
+    if instance is None:
+        raise ContainerInstanceNotFoundError(
+            "Container instance {0} not found.".format(instance_id))
+
+    return instance
+
+
+def drain_container_instance(client: mypy_boto3_ecs.Client,
+                             cluster_name: str,
+                             container_instance: str,
+                             wait_until_is_drained: bool = False):
+    """Drain containers running on a specific instance.
+
+    Args:
+        client (mypy_boto3_ecs.ECSClient):
+            An ECS API client.
+        cluster_name (str):
+            Name of the ECS cluster.
+        container_instance (str):
+            ARN of the ECS container instance to drain.
+        wait_until_is_drained (bool):
+            Whether this function should wait until the given instance has been
+            drained before returning. Defaults to False.
+    """
+    client.update_container_instances_state(
+        cluster=cluster_name,
+        containerInstances=[container_instance],
+        status='DRAINING')
+
+    if wait_until_is_drained:
+        wait_until_container_instance_is_drained(client, cluster_name,
+                                                 container_instance)
+
+
+def wait_until_container_instance_is_drained(client: mypy_boto3_ecs.Client,
+                                             cluster_name: str,
+                                             container_instance: str):
+
+    def check_is_drained() -> bool:
+        filters: ListTasksFilters = {
+            'desiredStatus': 'RUNNING',
+            'containerInstance': container_instance
+        }
+        tasks = list(list_tasks(client, cluster_name, filters, 1))
+        return len(tasks) == 0
+
+    attempts = 0
+    max_attempts = 60
+    interval = 10
+
+    while attempts < max_attempts:
+        if check_is_drained():
+            return
+
+        time.sleep(interval)
+        attempts += 1
+
+    raise RuntimeError(
+        "wait_until_container_instance_is_drained timed out before all tasks running on the container instance {0} were drained."
+        .format(container_instance))
